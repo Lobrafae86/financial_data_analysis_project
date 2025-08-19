@@ -1,0 +1,38 @@
+/*
+============================================================
+Quality Checks
+============================================================
+Script Purpose:
+    This script performs various quality checks for data 
+    consistency, accuracy, and standarizations accross
+    the 'silver' schema. It includes checks for:
+    - Null or duplicate primary keys.
+    - Unwanted spaces in string fields.
+    - Data standarizations and consistency.
+
+Usage Notes:
+    - Run these checks after data loading Silver layer.
+    - Investigate and resolve any discrepancies found during 
+    the checks.
+============================================================
+/*
+
+-- Check for nulls or duplicates in primary key
+-- Expectation: no results
+SELECT 
+    Account_Description,
+    count(*)
+FROM bronze.income_statement_2
+GROUP BY Account_Description
+HAVING COUNT (*) > 1 OR Account_Description IS NULL
+
+--Check unwanted spaces
+SELECT 
+    Account_Description
+FROM bronze.income_statement_2
+WHERE Account_Description != TRIM(Account_Description)
+
+--Data Standarization & Consistency
+SELECT DISTINCT 
+    Account_Description
+FROM bronze.income_statement_2
