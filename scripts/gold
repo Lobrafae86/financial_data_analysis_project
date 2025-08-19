@@ -1,0 +1,100 @@
+/*
+===============================================
+DDL: Script: Create Gold Views
+===============================================
+Script Purpose:
+    This scripts creates the view for the gold
+    layer in the data. 
+    The view performs the unifications of the 
+    queries Balance Sheet and Income Statment
+    with the purpose of creating the viz needed
+    for the analysis.
+
+Usage: 
+    - The view can be queried directly for 
+    analytics and reproting.
+===============================================
+/*
+
+
+--Unpivoting data to structure it
+SELECT 
+    t.Account_Description,
+    v.company,
+    v.year,
+    v.Amount
+INTO gold.balance_sheets
+FROM silver.balance_sheets as t
+CROSS APPLY
+    (VALUES
+        ('TSLA','2024', t.TSLA_2024),
+        ('TSLA','2023', t.TSLA_2023),
+        ('TSLA','2022', t.TSLA_2022),
+        ('AAPL','2024', t.AAPL_2024),
+        ('AAPL','2023', t.AAPL_2023),
+        ('AAPL','2022', t.AAPL_2022),
+        ('GOOGL','2024', t.GOOGL_2024),
+        ('GOOGL','2023', t.GOOGL_2023),
+        ('GOOGL','2022', t.GOOGL_2022),
+        ('AMZN','2024', t.AMZN_2024),
+        ('AMZN','2023', t.AMZN_2023),
+        ('AMZN','2022', t.AMZN_2022),
+        ('MSFT','2024', t.MSFT_2024),
+        ('MSFT','2023', t.MSFT_2023),
+        ('MSFT','2022', t.MSFT_2022),
+        ('META','2024', t.META_2024),
+        ('META','2023', t.META_2023),
+        ('META','2022', t.META_2022),
+        ('NFLX','2024', t.NFLX_2024),
+        ('NFLX','2023', t.NFLX_2023),
+        ('NFLX','2022', t.NFLX_2022),
+        ('NVDA','2024', t.NVDA_2024),
+        ('NVDA','2023', t.NVDA_2023),
+        ('NVDA','2022', t.NVDA_2022)
+                ) AS v (company,year,Amount)
+--Unpivoting data to structure it
+SELECT 
+    t.Account_Description,
+    v.company,
+    v.year,
+    v.Amount
+INTO gold.income_statement
+FROM silver.income_statement as t
+CROSS APPLY
+    (VALUES
+        ('TSLA','2024', t.TSLA_2024),
+        ('TSLA','2023', t.TSLA_2023),
+        ('TSLA','2022', t.TSLA_2022),
+        ('AAPL','2024', t.AAPL_2024),
+        ('AAPL','2023', t.AAPL_2023),
+        ('AAPL','2022', t.AAPL_2022),
+        ('GOOGL','2024', t.GOOGL_2024),
+        ('GOOGL','2023', t.GOOGL_2023),
+        ('GOOGL','2022', t.GOOGL_2022),
+        ('AMZN','2024', t.AMZN_2024),
+        ('AMZN','2023', t.AMZN_2023),
+        ('AMZN','2022', t.AMZN_2022),
+        ('MSFT','2024', t.MSFT_2024),
+        ('MSFT','2023', t.MSFT_2023),
+        ('MSFT','2022', t.MSFT_2022),
+        ('META','2024', t.META_2024),
+        ('META','2023', t.META_2023),
+        ('META','2022', t.META_2022),
+        ('NFLX','2024', t.NFLX_2024),
+        ('NFLX','2023', t.NFLX_2023),
+        ('NFLX','2022', t.NFLX_2022),
+        ('NVDA','2024', t.NVDA_2024),
+        ('NVDA','2023', t.NVDA_2023),
+        ('NVDA','2022', t.NVDA_2022)
+                ) AS v (company,year,Amount)
+--Unifying balance sheet and income statemet to create one table.
+CREATE VIEW gold.unified_queries AS
+SELECT *
+FROM gold.balance_sheets
+UNION ALL
+SELECT *
+FROM    gold.income_statement
+
+SELECT *
+FROM gold.unified_queries
+
