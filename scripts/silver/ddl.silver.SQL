@@ -15,97 +15,100 @@ This stored procedure does not accept any parameters or return of
 any values.
 =====================================================================
 /*
-CREATE OR ALTER PROCEDURE silver.load_silver AS
+CREATE OR ALTER PROCEDURE gold.load_goldr AS
 BEGIN
     DECLARE @start_time DATETIME, @end_time DATETIME, @batch_start_time DATETIME, @batch_end_time DATETIME
     BEGIN TRY
         SET @batch_start_time = GETDATE();
         PRINT '=====================================================';
-        PRINT 'Loading Silver Layer';
+        PRINT 'Loading Gold Layer';
         PRINT '=====================================================';
 
         PRINT '-----------------------------------------------------';
-        PRINT 'Loading Stock Market price to Silver Layer';
+        PRINT 'Loading table to calculate ROE';
         PRINT '-----------------------------------------------------';
         
         -- Use DROP TABLE IF EXISTS to prevent 'object already exists' error.
-        IF OBJECT_ID('silver.stock_market_price') IS NOT NULL
+        IF OBJECT_ID('gold.bsis') IS NOT NULL
         BEGIN
-            DROP TABLE silver.stock_market_price;
+            DROP TABLE gold.bsis;
         END
 
         SET @start_time = GETDATE();
-        -- Create silver table
-        SELECT *
-        INTO
-            silver.stock_market_price
-        FROM bronze.stock_market_prices_filtered;
-        
-        SET @end_time = GETDATE();
+-- Create ROE by filtering only Operating REvenue and Common Stock Equity.
+SELECT 
+    Account_Description,
+    Company,
+    Year,
+    Amount
+FROM gold.bsis
+WHERE Account_Description = 'Operating Revenue' OR Account_Description = 'Common Stock Equity'
+GROUP BY 
+    Account_Description,
+    Company,
+    Year,
+    Amount
+SET @end_time = GETDATE();
         PRINT '>>Load duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR) + ' seconds'
         PRINT '>>--------------------------------------------------'
 
         PRINT '===================================================='
-        PRINT 'Loading Balance Sheet to silver layer'
+        PRINT 'Loading table to calculate ROA'
         PRINT '===================================================='
         
         -- Use DROP TABLE IF EXISTS to prevent 'object already exists' error.
-        IF OBJECT_ID('silver.balance_sheet') IS NOT NULL
+        IF OBJECT_ID('gold.bsis') IS NOT NULL
         BEGIN
-            DROP TABLE silver.balance_sheet;
+            DROP TABLE gold.bsis;
         END
 
         SET @start_time = GETDATE();
-        SELECT 
-            UPPER(TRIM(Account_Description)) as Account_Description,
-            UPPER(TRIM(company)) as Company,
-            TRIM(year) as Year,
-            FORMAT(
-                CASE 
-                    WHEN Amount IS NULL THEN 0 
-                    ELSE Amount
-                END, 'N0'
-            ) AS Amount
-        INTO
-            silver.balance_sheet
-        FROM bronze.balance_sheet_3;
-        
-        SET @end_time = GETDATE();
+-- Creating ROA, first we need to include the Assets accounts and then create a DAX to calculate Total Assets.
+SELECT 
+    Account_Description AS Account_Description,
+    Company,
+    Year,
+    Amount
+FROM gold.bsis
+WHERE Account_Description IN (
+    'Cash and Cash Equivalents',
+    'Accounts Receivable',
+    'Inventory',
+    'Net PPE',
+    'Intangible Assets',
+    'Deferred Assets',
+    'Other Properties',
+    'Common Stock Equity'
+)
+SET @end_time = GETDATE();
         PRINT '>>Load duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR) + ' seconds'
         PRINT '>>--------------------------------------------------'
 
         PRINT '==================================================='
-        PRINT 'Loading Income Statement to silver layer'
+        PRINT 'Loading union of tables Balance Sheet and Income Statement'
         PRINT '==================================================='
         
         -- Use DROP TABLE IF EXISTS to prevent 'object already exists' error.
-        IF OBJECT_ID('silver.income_statement') IS NOT NULL
+        IF OBJECT_ID('gold.balance_income') IS NOT NULL
         BEGIN
-            DROP TABLE silver.income_statement;
+            DROP TABLE gold.balance_income;
         END
-
-        SET @start_time = GETDATE();
-        SELECT 
-            UPPER(TRIM(Account_Description)) AS Account_Description,
-            UPPER(TRIM(company)) AS Company,
-            UPPER(TRIM(year)) as Year,
-            FORMAT(
-                CASE 
-                    WHEN Amount IS NULL THEN 0
-                    ELSE Amount
-                END, 'N0'
-            ) AS Amount
-        INTO
-            silver.income_statement
-        FROM bronze.income_statement_3;
-        
-        SET @end_time = GETDATE();
+--Union all on balance sheet & income statement to create dashboard
+--Create view
+SET @start_time = GETDATE();
+CREATE gold.balance_income AS
+SELECT *
+FROM silver.balance_sheet
+UNION ALL
+SELECT *
+FROM silver.income_statement
+SET @end_time = GETDATE();
         PRINT '>>Load duration: ' + CAST(DATEDIFF(SECOND, @start_time, @end_time) AS NVARCHAR) + ' seconds'
         PRINT '>>--------------------------------------------------'
         
         SET @batch_end_time = GETDATE();
         PRINT '===================================================='
-        PRINT 'Loading silver layer is completed';
+        PRINT 'Loading gold layer is completed';
         PRINT 'Total load duration: ' + CAST(DATEDIFF(SECOND, @batch_start_time, @batch_end_time) AS NVARCHAR) + ' seconds'
         PRINT '===================================================='
     END TRY
