@@ -11,112 +11,153 @@ Script Purpose:
 
 CREATE OR ALTER PROCEDURE bronze.load_bronze AS
 BEGIN
-    PRINT '===================================='
-    PRINT 'Loading stock market price 2'
-    PRINT '====================================='
-    --Select only years 2024 to 2022
-    SELECT 
-        CAST(Date AS DATE) AS Date,
-        TSLA,
-        AAPL,
-        GOOGL,
-        AMZN,
-        MSFT,
-        META,
-        NFLX,
-        NVDA
-    --Create new table to proceed unpivot 
-    INTO 
-        bronze.stock_market_prices_2
-    FROM bronze.stock_market_prices
-    WHERE 
-        CAST(DATE as Date) BETWEEN '2022-01-01' AND '2024-12-31'
-    PRINT '====================================================='
-    PRINT 'Load Income Statement'
-    PRINT '====================================================='
-    --Select only years 2024, 2023, and 2022.
-    SELECT 
-        column1 as Account_Description,
-        column2 as TSLA_2024,
-        column3 as TSLA_2023,
-        column4 as TSLA_2022,
-        column7 as AAPL_2024,
-        column8 as AAPL_2023,
-        column9 as AAPL_2022,
-        column12 as GOOGL_2024,
-        column13 as GOOGL_2023,
-        column14 as GOOGL_2022,
-        column16 as AMZN_2024,
-        column17 AS AMZN_2023,
-        column18 AS AMZN_2022,
-        column22 AS MSFT_2024,
-        column23 AS MSFT_2023,
-        column24 AS MSFT_2022,
-        column25 AS META_2024,
-        column26 AS META_2023,
-        column27 AS META_2022,
-        column30 AS NFLX_2024,
-        column31 AS NFLX_2023,
-        column32 AS NFLX_2022,
-        column35 AS NVDA_2024,
-        column36 AS NVDA_2023,
-        column37 AS NVDA_2022
-    --Create new table to proceed unpivot 
-    INTO 
-        bronze.income_statement_2
-    FROM bronze.income_statement
-    --Select only account key needed
-    WHERE 
-        column1 IN (
-            'Total Revenue',
-            'Cost Of Revenue',
-            'Gross Profit',
-            'Operating Income',
-            'Total Expenses',
-            'Net Interest Income',
-            'Pretax Income'
-        )
-    PRINT '======================================='
-    PRINT 'Load Balance Sheet'
-    PRINT '======================================='
-    --Select only years 2024, 2023, and 2022.
+    -- Error corrected: Added DATETIME to @batch_end_time declaration.
+    DECLARE @start_time DATETIME, @end_time DATETIME, @batch_start_time DATETIME, @batch_end_time DATETIME
+    BEGIN TRY 
+        SET @batch_start_time = GETDATE()
+        PRINT '====================================='
+        PRINT 'Loading Bronze Layer'
+        PRINT '====================================='
+
+        PRINT '-------------------------------------'
+        PRINT 'Loading stock market price'
+        PRINT '-------------------------------------'
+        
+        -- Use DROP TABLE IF EXISTS to prevent the 'object already exists' error.
+        -- This ensures the procedure can be run multiple times safely.
+        SET @start_time = GETDATE()
+        IF OBJECT_ID('bronze.stock_market_prices_filtered') IS NOT NULL
+        BEGIN
+            DROP TABLE bronze.stock_market_prices_filtered;
+        END
+
         SELECT 
-            column1 as Account_Description,
-            column2 as TSLA_2024,
-            column3 as TSLA_2023,
-            column4 as TSLA_2022,
-            column7 as AAPL_2024,
-            column8 as AAPL_2023,
-            column9 as AAPL_2022,
-            column12 as GOOGL_2024,
-            column13 as GOOGL_2023,
-            column14 as GOOGL_2022,
-            column17 AS AMZN_2024,
-            column18 AS AMZN_2023,
-            column19 AS AMZN_2022,
-            column23 AS MSFT_2024,
-            column24 AS MSFT_2023,
-            column25 AS MSFT_2022,
-            column27 AS META_2024,
-            column28 AS META_2023,
-            column29 AS META_2022,
-            column32 AS NFLX_2024,
-            column33 AS NFLX_2023,
-            column34 AS NFLX_2022,
-            column38 AS NVDA_2024,
-            column39 AS NVDA_2023,
-            column40 AS NVDA_2022
-        --Create new table to proceed unpivot 
+            CAST(Date AS DATE) AS Date,
+            TSLA,
+            AAPL,
+            GOOGL,
+            AMZN,
+            MSFT,
+            META,
+            NFLX,
+            NVDA
         INTO 
-            bronze.balance_sheets_2
-        FROM bronze.balance_sheets
-        --Select only account key needed
-        WHERE column1 IN (
-            'Current Assets',
-            'Gross PPE',
-            'Net PPE',
-            'Total Assets',
-            'Current Liabilities',
-            'Total Debt',
-            'Total Capitalization')
-END
+            bronze.stock_market_prices_filtered
+        FROM 
+            bronze.stock_market_prices
+        WHERE 
+            CAST(DATE as Date) BETWEEN '2022-01-01' AND '2024-12-31'
+        SET @end_time = GETDATE()
+        PRINT 'Load duration: ' + CAST(DATEDIFF(second,@start_time,@end_time) as NVARCHAR) + ' seconds'
+        PRINT '--------------------'
+
+        PRINT '--------------------------------------------'
+        PRINT 'Load Income Statement'
+        PRINT '--------------------------------------------'
+        -- Drop table before recreating it with SELECT INTO to avoid object already exists error.
+        SET @start_time = GETDATE()
+        IF OBJECT_ID('bronze.income_statement_3') IS NOT NULL
+        BEGIN
+            DROP TABLE bronze.income_statement_3;
+        END
+        SELECT 
+            t.Account_Description,
+            v.company,
+            v.year,
+            v.Amount
+        INTO
+            bronze.income_statement_3
+        FROM bronze.income_statement_2 as t
+        CROSS APPLY
+            (VALUES
+                ('TSLA','2024', t.TSLA_2024),
+                ('TSLA','2023', t.TSLA_2023),
+                ('TSLA','2022', t.TSLA_2022),
+                ('AAPL','2024', t.AAPL_2024),
+                ('AAPL','2023', t.AAPL_2023),
+                ('AAPL','2022', t.AAPL_2022),
+                ('GOOGL','2024', t.GOOGL_2024),
+                ('GOOGL','2023', t.GOOGL_2023),
+                ('GOOGL','2022', t.GOOGL_2022),
+                ('AMZN','2024', t.AMZN_2024),
+                ('AMZN','2023', t.AMZN_2023),
+                ('AMZN','2022', t.AMZN_2022),
+                ('MSFT','2024', t.MSFT_2024),
+                ('MSFT','2023', t.MSFT_2023),
+                ('MSFT','2022', t.MSFT_2022),
+                ('META','2024', t.META_2024),
+                ('META','2023', t.META_2023),
+                ('META','2022', t.META_2022),
+                ('NFLX','2024', t.NFLX_2024),
+                ('NFLX','2023', t.NFLX_2023),
+                ('NFLX','2X2', t.NFLX_2022),
+                ('NVDA','2024', t.NVDA_2024),
+                ('NVDA','2023', t.NVDA_2023),
+                ('NVDA','2022', t.NVDA_2022)
+            ) AS v (company,year,Amount);
+        SET @end_time = GETDATE()
+        PRINT 'Load duration: ' + CAST(DATEDIFF(second,@start_time,@end_time) as NVARCHAR) + ' seconds'
+        PRINT '--------------------'
+
+        PRINT '---------------------------------------'
+        PRINT 'Load Balance Sheet'
+        PRINT '---------------------------------------'
+        -- Drop table before recreating it with SELECT INTO to avoid object already exists error.
+        SET @start_time = GETDATE()
+        IF OBJECT_ID('bronze.balance_sheet_3') IS NOT NULL
+        BEGIN
+            DROP TABLE bronze.balance_sheet_3;
+        END
+        SELECT 
+            t.Account_Description,
+            v.company,
+            v.year,
+            v.Amount
+        INTO
+            bronze.balance_sheet_3
+        FROM bronze.balance_sheets_2 as t
+        CROSS APPLY
+            (VALUES
+                ('TSLA','2024', t.TSLA_2024),
+                ('TSLA','2023', t.TSLA_2023),
+                ('TSLA','2022', t.TSLA_2022),
+                ('AAPL','2024', t.AAPL_2024),
+                ('AAPL','2023', t.AAPL_2023),
+                ('AAPL','2022', t.AAPL_2022),
+                ('GOOGL','2024', t.GOOGL_2024),
+                ('GOOGL','2023', t.GOOGL_2023),
+                ('GOOGL','2022', t.GOOGL_2022),
+                ('AMZN','2024', t.AMZN_2024),
+                ('AMZN','2023', t.AMZN_2023),
+                ('AMZN','2022', t.AMZN_2022),
+                ('MSFT','2024', t.MSFT_2024),
+                ('MSFT','2023', t.MSFT_2023),
+                ('MSFT','2022', t.MSFT_2022),
+                ('META','2024', t.META_2024),
+                ('META','2023', t.META_2023),
+                ('META','2022', t.META_2022),
+                ('NFLX','2024', t.NFLX_2024),
+                ('NFLX','2023', t.NFLX_2023),
+                ('NFLX','2022', t.NFLX_2022),
+                ('NVDA','2024', t.NVDA_2024),
+                ('NVDA','2023', t.NVDA_2023),
+                ('NVDA','2022', t.NVDA_2022)
+            ) AS v (company,year,Amount);
+        SET @end_time = GETDATE()
+        PRINT 'Load duration: ' + CAST(DATEDIFF(second,@start_time,@end_time) as NVARCHAR) + ' seconds';
+        PRINT '--------------------'
+        
+        SET @batch_end_time =GETDATE()
+        PRINT '======================================'
+        PRINT 'Loading Bronze Layer is completed'
+        PRINT '    - Total load duration: ' + CAST(DATEDIFF(second,@batch_start_time,@batch_end_time) as NVARCHAR) + ' seconds'
+        PRINT '======================================'
+    END TRY
+    BEGIN CATCH
+        PRINT '======================================'
+        PRINT 'ERROR OCCURED DURING LOADING BRONZE LAYER'
+        PRINT 'Error message: ' + ERROR_MESSAGE();
+        PRINT 'Error state: ' + CAST (ERROR_STATE() AS NVARCHAR);
+        PRINT '======================================'
+    END CATCH
+END;
