@@ -16,23 +16,90 @@ Usage Notes:
     the checks.
 ============================================================
 /*
-
--- Check for nulls or duplicates in primary key
+--BALANCE SHEET
+-- Check for Nulls or Duplicates in Primary Key
 -- Expectation: no results
 SELECT 
-    Account_Description,
-    count(*)
-FROM bronze.income_statement_2
-GROUP BY Account_Description
-HAVING COUNT (*) > 1 OR Account_Description IS NULL
+Amount,
+count(*)
+FROM bronze.balance_sheet_3
+GROUP BY Amount
+HAVING COUNT(*) > 1 OR Amount IS NULL
 
---Check unwanted spaces
+-- Check for unwanted Spaces
+-- Expectation: No results
+Select
+Amount
+FROM bronze.balance_sheet_3
+WHERE Amount != TRIM(Amount)
+
+-- Data Standarization & Consistency
+SELECT DISTINCT
+company 
+FROM bronze.balance_sheet_3
+
 SELECT 
-    Account_Description
-FROM bronze.income_statement_2
-WHERE Account_Description != TRIM(Account_Description)
+    UPPER(TRIM(Account_Description)) as Account_Description,
+    UPPER(TRIM(company)) as Company,
+    TRIM(year) as Year,
+    FORMAT(
+        CASE 
+            WHEN Amount IS NULL THEN 0 
+            ELSE Amount
+        END, 'N0'
+    ) AS Amount
+INTO
+    silver.balance_sheet
+FROM bronze.balance_sheet_3;
 
---Data Standarization & Consistency
+
+-- INCOME STATEMENT
+-- Check for Nulls or Duplicates in Primary Key
+-- Expectation: no results
+SELECT 
+Amount,
+COUNT(*)
+FROM bronze.income_statement_3
+GROUP BY Amount
+HAVING COUNT(*) > 1 OR Amount IS NULL
+
+-- Check for unwanted Spaces
+-- Expectation: No results
+Select
+company
+FROM bronze.income_statement_3
+WHERE company != TRIM(company)
+
+-- Data Standarization & Consistency
 SELECT DISTINCT 
-    Account_Description
-FROM bronze.income_statement_2
+Company
+FROM bronze.income_statement_3
+
+SELECT 
+    UPPER(TRIM(Account_Description)) AS Account_Description,
+    UPPER(TRIM(company)) AS Company,
+    UPPER(TRIM(year)) as Year,
+    FORMAT(
+        CASE 
+            WHEN Amount IS NULL THEN 0
+            ELSE Amount
+        END, 'N0'
+    ) AS Amount
+INTO
+    silver.income_statement
+FROM bronze.income_statement_3
+
+-- STOCK MARKET PRICES
+-- Check for unwanted Spaces
+-- Expectation: No results
+SELECT 
+NVDA,
+COUNT (*)
+FROM bronze.stock_market_prices_filtered
+GROUP BY NVDA
+HAVING COUNT (*) > 1 OR NVDA IS NULL
+
+SELECT *
+INTO
+    silver.stock_market_price
+FROM bronze.stock_market_prices_filtered
