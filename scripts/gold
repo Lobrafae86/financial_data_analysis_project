@@ -3,16 +3,16 @@
 DDL: Script: Create Gold Views
 ===============================================
 Script Purpose:
-    This scripts creates the view for the gold
+    This script creates the view for the gold
     layer in the data. 
     The view performs the unifications of the 
-    queries Balance Sheet and Income Statment
+    queries Balance Sheet and Income Statement
     with the purpose of creating the viz needed
     for the analysis.
 
 Usage: 
     - The view can be queried directly for 
-    analytics and reproting.
+    analytics and reporting.
 ===============================================
 /*
 
